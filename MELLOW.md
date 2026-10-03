@@ -7,6 +7,7 @@ tags. Nothing here is filed upstream.
 
 - Version: `8.0.12-mellow.1`
 - Upstream base: tag `v8.0.12`, commit `2044a01f`
+- Last sync: 2026-10-02
 - Configuration, service and deploy: the MellowBox record, repository
   `Mellow-Studios/mellowbox`, directory `proxy/`; MellowOps project record
   `content/projects/mellowbox/`
@@ -64,4 +65,4 @@ Runs only in a MellowOps maintain run.
    then `go test ./...`.
 5. Build with the version set to `<upstream>-mellow.N`. `N` starts at 1 on each
    upstream tag and rises with each patch-set change on that tag.
-6. Update the version and upstream base lines in this file.
+6. Update the version, upstream base and last sync lines in this file.
