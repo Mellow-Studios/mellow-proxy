@@ -1,3 +1,4 @@
+> This is the Mellow Studios fork; read MELLOW.md first. Upstream's instructions follow.
 # AGENTS.md
 
 Go 1.26+ proxy server providing OpenAI/Gemini/Claude/Codex compatible APIs with OAuth and round-robin load balancing.
