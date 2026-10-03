@@ -131,6 +131,30 @@ func TestWeeklyQuotaResetAt_Codex(t *testing.T) {
 	}
 }
 
+func TestWeeklyQuotaResetAt_CodexSecondaryWindowAbsent(t *testing.T) {
+	now := time.Now()
+	resetAt := now.Add(597505 * time.Second)
+	auth := &Auth{ID: "x", Provider: "codex", Quota: QuotaState{ObservedAt: now, Signals: map[string]string{
+		"X-Codex-Secondary-Reset-After-Seconds": "0",
+		"X-Codex-Secondary-Window-Minutes":      "0",
+		"X-Codex-Primary-Window-Minutes":        "10080",
+		"X-Codex-Primary-Reset-At":              strconv.FormatInt(resetAt.Unix(), 10),
+	}}}
+	got := weeklyQuotaResetAt(auth, "gpt-6-astra", now)
+	if got.Unix() != resetAt.Unix() {
+		t.Fatalf("weeklyQuotaResetAt() = %v, want the primary window reset %v", got, resetAt)
+	}
+	unknown := &Auth{ID: "y", Provider: "codex"}
+	sel := &SoonestResetSelector{}
+	picked, err := sel.Pick(context.Background(), "codex", "gpt-6-astra", cliproxyexecutor.Options{}, []*Auth{auth, unknown})
+	if err != nil {
+		t.Fatalf("Pick() error = %v", err)
+	}
+	if picked.ID != "y" {
+		t.Fatalf("Pick() auth.ID = %q, want the unknown credential y to be probed first", picked.ID)
+	}
+}
+
 func TestSoonestResetSelectorPick_PrefersModelScopedWeeklyReset(t *testing.T) {
 	t.Parallel()
 

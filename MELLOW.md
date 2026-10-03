@@ -5,7 +5,7 @@
 studio's subscription proxy. It is one patch set carried on upstream release
 tags. Nothing here is filed upstream.
 
-- Version: `8.0.12-mellow.1`
+- Version: `8.0.12-mellow.2`
 - Upstream base: tag `v8.0.12`, commit `2044a01f`
 - Last sync: 2026-10-02
 - Configuration, service and deploy: the MellowBox record, repository
@@ -41,17 +41,26 @@ cloaking, websockets) stay in the MellowBox config, never in this fork.
    `internal/api/handlers/management/config_basic.go`, test in
    `internal/api/handlers/management/config_basic_weight_test.go`.
 
+3. Codex weekly reset with no secondary window. Origin: this fork,
+   2026-10-02, found on the home node with five Codex accounts. Codex reports
+   an absent secondary window as resetting in 0 seconds; patch 1 took that
+   as a known reset and never read the primary window, so every Codex
+   credential tied at "unknown" and the lowest id served every session.
+   A reset that is not in the future now counts as unknown before the
+   primary window is read. Files: `sdk/cliproxy/auth/selector_soonest_reset.go`,
+   test `TestWeeklyQuotaResetAt_CodexSecondaryWindowAbsent`.
+
 Fork files, no behaviour: this file, the first line of `AGENTS.md`, and
 `runs/` in `.gitignore` for build and scratch output.
 
 ## Build
 
 ```bash
-go build -ldflags "-s -w -X main.Version=8.0.12-mellow.1 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
+go build -ldflags "-s -w -X main.Version=8.0.12-mellow.2 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
 ```
 
 Check: `runs/scratch/cli-proxy-api -h` prints
-`CLIProxyAPI Version: 8.0.12-mellow.1, ...` on its first line and exits.
+`CLIProxyAPI Version: 8.0.12-mellow.2, ...` on its first line and exits.
 
 ## Rebase onto a new upstream tag
 

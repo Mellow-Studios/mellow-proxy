@@ -87,6 +87,11 @@ func weeklyQuotaResetFromSnapshot(provider string, quota QuotaState, modelScoped
 		// Codex reports the weekly limit as the secondary window. Accounts without a
 		// secondary window may expose the weekly limit as the primary one instead.
 		resetAt = parseQuotaResetAt(signal("X-Codex-Secondary-Reset-At"), signal("X-Codex-Secondary-Reset-After-Seconds"), quota.ObservedAt)
+		// An account with no secondary window reports it as resetting in 0 seconds; that is
+		// not a known reset, so the primary window still gets its turn.
+		if !resetAt.After(now) {
+			resetAt = time.Time{}
+		}
 		if resetAt.IsZero() {
 			if minutes, errParse := strconv.ParseInt(signal("X-Codex-Primary-Window-Minutes"), 10, 64); errParse == nil && minutes >= weeklyWindowMinutes {
 				resetAt = parseQuotaResetAt(signal("X-Codex-Primary-Reset-At"), signal("X-Codex-Primary-Reset-After-Seconds"), quota.ObservedAt)
