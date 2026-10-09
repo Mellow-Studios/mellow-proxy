@@ -5,9 +5,9 @@
 studio's subscription proxy. It is one patch set carried on upstream release
 tags. Nothing here is filed upstream.
 
-- Version: `8.0.12-mellow.2`
-- Upstream base: tag `v8.0.12`, commit `2044a01f`
-- Last sync: 2026-10-02
+- Version: `8.0.22-mellow.1`
+- Upstream base: tag `v8.0.22`, commit `67465884`
+- Last sync: 2026-10-08
 - Configuration, service and deploy: the MellowBox record, repository
   `Mellow-Studios/mellowbox`, directory `proxy/`; MellowOps project record
   `content/projects/mellowbox/`
@@ -56,11 +56,11 @@ Fork files, no behaviour: this file, the first line of `AGENTS.md`, and
 ## Build
 
 ```bash
-go build -ldflags "-s -w -X main.Version=8.0.12-mellow.2 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
+go build -ldflags "-s -w -X main.Version=8.0.22-mellow.1 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
 ```
 
 Check: `runs/scratch/cli-proxy-api -h` prints
-`CLIProxyAPI Version: 8.0.12-mellow.2, ...` on its first line and exits.
+`CLIProxyAPI Version: 8.0.22-mellow.1, ...` on its first line and exits.
 
 ## Rebase onto a new upstream tag
 
