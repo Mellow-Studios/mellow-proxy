@@ -5,9 +5,9 @@
 studio's subscription proxy. It is one patch set carried on upstream release
 tags. Nothing here is filed upstream.
 
-- Version: `8.0.22-mellow.1`
-- Upstream base: tag `v8.0.22`, commit `67465884`
-- Last sync: 2026-10-08
+- Version: `8.0.41-mellow.1`
+- Upstream base: tag `v8.0.41`, commit `8289ec4c`
+- Last sync: 2026-10-23
 - Configuration, service and deploy: the MellowBox record, repository
   `Mellow-Studios/mellowbox`, directory `proxy/`; MellowOps project record
   `content/projects/mellowbox/`
@@ -50,17 +50,28 @@ cloaking, websockets) stay in the MellowBox config, never in this fork.
    primary window is read. Files: `sdk/cliproxy/auth/selector_soonest_reset.go`,
    test `TestWeeklyQuotaResetAt_CodexSecondaryWindowAbsent`.
 
+4. Catalog refresh failures name the source and the error. Origin: this
+   fork, 2026-10-23, found on the home node. Every three-hourly refresh of the
+   model catalog had failed since at least 2026-10-22 behind upstream's
+   one-line warning, so the proxy ran on the embedded catalog of its build,
+   which predated `claude-haiku-5-5`, and every Haiku seat died on
+   `unknown provider for model`. The fetcher now joins each source's error
+   into the one it returns, and both refresh warnings print it. Files:
+   `internal/registry/catalog_sources.go`, test
+   `TestCatalogRefreshWarningNamesEachSource` in
+   `internal/registry/catalog_sources_test.go`.
+
 Fork files, no behaviour: this file, the first line of `AGENTS.md`, and
 `runs/` in `.gitignore` for build and scratch output.
 
 ## Build
 
 ```bash
-go build -ldflags "-s -w -X main.Version=8.0.22-mellow.1 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
+go build -ldflags "-s -w -X main.Version=8.0.41-mellow.1 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
 ```
 
 Check: `runs/scratch/cli-proxy-api -h` prints
-`CLIProxyAPI Version: 8.0.22-mellow.1, ...` on its first line and exits.
+`CLIProxyAPI Version: 8.0.41-mellow.1, ...` on its first line and exits.
 
 ## Rebase onto a new upstream tag
 
