@@ -7,9 +7,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestCatalogFetcherSources(t *testing.T) {
@@ -62,6 +66,36 @@ func TestCatalogFetcherSources(t *testing.T) {
 				t.Fatal("file was not reread")
 			}
 		})
+	}
+}
+
+func TestCatalogRefreshWarningNamesEachSource(t *testing.T) {
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+	defer failing.Close()
+	invalid := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("invalid")) }))
+	defer invalid.Close()
+	fetch := catalogFetcher(embeddedModelsJSON, []string{failing.URL, invalid.URL}, validateCatalogBytes)
+	_, errFetch := fetch(context.Background(), "")
+	if errFetch == nil {
+		t.Fatal("fetch succeeded with no valid source")
+	}
+	for _, want := range []string{failing.URL, "catalog HTTP status 503", invalid.URL, "invalid character"} {
+		if !strings.Contains(errFetch.Error(), want) {
+			t.Fatalf("fetch error %q does not name %q", errFetch, want)
+		}
+	}
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+	updater := &catalogUpdater{fetch: fetch, publish: publishCatalogBytes}
+	updater.refresh(context.Background(), "", 0)
+	entry := hook.LastEntry()
+	if entry == nil || entry.Level != log.WarnLevel {
+		t.Fatalf("refresh logged no warning: %+v", entry)
+	}
+	for _, want := range []string{failing.URL, "catalog HTTP status 503"} {
+		if !strings.Contains(entry.Message, want) {
+			t.Fatalf("refresh warning %q does not name %q", entry.Message, want)
+		}
 	}
 }
 

@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,7 +72,7 @@ func (u *catalogUpdater) refresh(ctx context.Context, source string, generation 
 	data, errFetch := u.fetch(ctx, source)
 	if errFetch != nil {
 		if ctx.Err() == nil {
-			log.Warn("model catalog refresh failed; keeping last valid catalog")
+			log.Warnf("model catalog refresh failed; keeping last valid catalog: %v", errFetch)
 		}
 		return
 	}
@@ -83,7 +84,7 @@ func (u *catalogUpdater) refresh(ctx context.Context, source string, generation 
 	changed, errPublish := u.publish(data)
 	u.mu.Unlock()
 	if errPublish != nil {
-		log.Warn("model catalog rejected; keeping last valid catalog")
+		log.Warnf("model catalog rejected; keeping last valid catalog: %v", errPublish)
 		return
 	}
 	notifyModelRefresh(changed)
@@ -138,16 +139,21 @@ func catalogFetcher(embedded []byte, urls []string, validate func([]byte) error)
 		if source != "" {
 			sources = []string{source}
 		}
+		var errs []error
 		for _, candidate := range sources {
 			data, errRead := readCatalogSource(ctx, candidate)
-			if errRead == nil && validate(data) == nil {
+			if errRead != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", candidate, errRead))
+			} else if errValidate := validate(data); errValidate != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", candidate, errValidate))
+			} else {
 				return data, nil
 			}
 			if ctx.Err() != nil {
 				break
 			}
 		}
-		return nil, fmt.Errorf("no valid model catalog source")
+		return nil, fmt.Errorf("no valid model catalog source: %w", errors.Join(errs...))
 	}
 }
 
