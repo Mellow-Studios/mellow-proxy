@@ -159,3 +159,34 @@ func TestCatalogRefreshKeepsLastValidData(t *testing.T) {
 		t.Fatal("invalid catalog changed data")
 	}
 }
+
+func TestCatalogStartRetriesUntilAFetchSucceeds(t *testing.T) {
+	initial, maximum := catalogRetryInitial, catalogRetryMax
+	catalogRetryInitial, catalogRetryMax = time.Millisecond, 4*time.Millisecond
+	defer func() { catalogRetryInitial, catalogRetryMax = initial, maximum }()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var attempts atomic.Int32
+	published := make(chan string, 1)
+	u := &catalogUpdater{
+		fetch: func(context.Context, string) ([]byte, error) {
+			if attempts.Add(1) < 4 {
+				return nil, errors.New("lookup raw.githubusercontent.com: no such host")
+			}
+			return []byte("live"), nil
+		},
+		publish: func(data []byte) ([]string, error) { published <- string(data); return nil, nil },
+	}
+	u.configure(ctx, "")
+	select {
+	case data := <-published:
+		if data != "live" {
+			t.Fatalf("published %q, want the live catalog", data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("no catalog published after %d failed fetches", attempts.Load())
+	}
+	if got := attempts.Load(); got != 4 {
+		t.Fatalf("fetch attempts = %d, want 4", got)
+	}
+}

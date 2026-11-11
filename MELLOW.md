@@ -5,7 +5,7 @@
 studio's subscription proxy. It is one patch set carried on upstream release
 tags. Nothing here is filed upstream.
 
-- Version: `8.0.41-mellow.1`
+- Version: `8.0.41-mellow.2`
 - Upstream base: tag `v8.0.41`, commit `8289ec4c`
 - Last sync: 2026-10-23
 - Configuration, service and deploy: the MellowBox record, repository
@@ -61,17 +61,30 @@ cloaking, websockets) stay in the MellowBox config, never in this fork.
    `TestCatalogRefreshWarningNamesEachSource` in
    `internal/registry/catalog_sources_test.go`.
 
+5. A failed catalog fetch at start retries until one succeeds. Origin: this
+   fork, 2026-11-11, found on the home node. The Mac rebooted at 00:22:26,
+   the proxy started at 00:22:49 before DNS answered, every catalog fetch
+   failed with `no such host`, and the proxy served the embedded catalog of
+   its build, which predates `claude-fable-5-2`, until the next
+   three-hourly refresh. The start goroutine now retries a failed fetch with
+   doubling delay from five seconds to two minutes until one publishes, logs
+   how many attempts failed, and only then hands over to the ticker; a
+   failure after a successful start still waits for the ticker, since the
+   last valid catalog stands. Files: `internal/registry/catalog_sources.go`,
+   test `TestCatalogStartRetriesUntilAFetchSucceeds` in
+   `internal/registry/catalog_sources_test.go`.
+
 Fork files, no behaviour: this file, the first line of `AGENTS.md`, and
 `runs/` in `.gitignore` for build and scratch output.
 
 ## Build
 
 ```bash
-go build -ldflags "-s -w -X main.Version=8.0.41-mellow.1 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
+go build -ldflags "-s -w -X main.Version=8.0.41-mellow.2 -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o runs/scratch/cli-proxy-api ./cmd/server
 ```
 
 Check: `runs/scratch/cli-proxy-api -h` prints
-`CLIProxyAPI Version: 8.0.41-mellow.1, ...` on its first line and exits.
+`CLIProxyAPI Version: 8.0.41-mellow.2, ...` on its first line and exits.
 
 ## Rebase onto a new upstream tag
 

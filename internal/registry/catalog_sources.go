@@ -17,6 +17,13 @@ import (
 
 const embeddedCatalogSource = "embed"
 
+// A fetch that fails at start, before DNS answers on a freshly booted box,
+// retries with doubling delay until one succeeds; the ticker takes over then.
+var (
+	catalogRetryInitial = 5 * time.Second
+	catalogRetryMax     = 2 * time.Minute
+)
+
 // catalogUpdater serializes source changes with publication, not network I/O.
 // Cancellation saves work; the generation check also protects against readers
 // that finish after cancellation (including local file reads).
@@ -51,7 +58,22 @@ func (u *catalogUpdater) configure(ctx context.Context, source string) {
 	}
 	generation := u.generation
 	go func() {
-		u.refresh(refreshCtx, source, generation)
+		delay, failed := catalogRetryInitial, 0
+		for !u.refresh(refreshCtx, source, generation) {
+			if source == embeddedCatalogSource {
+				return
+			}
+			select {
+			case <-refreshCtx.Done():
+				return
+			case <-time.After(delay):
+			}
+			delay = min(delay*2, catalogRetryMax)
+			failed++
+		}
+		if failed > 0 && refreshCtx.Err() == nil {
+			log.Infof("model catalog fetched after %d failed attempt(s) at start", failed)
+		}
 		if source == embeddedCatalogSource {
 			return
 		}
@@ -68,26 +90,30 @@ func (u *catalogUpdater) configure(ctx context.Context, source string) {
 	}()
 }
 
-func (u *catalogUpdater) refresh(ctx context.Context, source string, generation uint64) {
+// refresh reports whether the source's catalog was published. A stale
+// generation or a cancelled context reads as published, since no retry can
+// serve it.
+func (u *catalogUpdater) refresh(ctx context.Context, source string, generation uint64) bool {
 	data, errFetch := u.fetch(ctx, source)
 	if errFetch != nil {
 		if ctx.Err() == nil {
 			log.Warnf("model catalog refresh failed; keeping last valid catalog: %v", errFetch)
 		}
-		return
+		return ctx.Err() != nil
 	}
 	u.mu.Lock()
 	if generation != u.generation || ctx.Err() != nil {
 		u.mu.Unlock()
-		return
+		return true
 	}
 	changed, errPublish := u.publish(data)
 	u.mu.Unlock()
 	if errPublish != nil {
 		log.Warnf("model catalog rejected; keeping last valid catalog: %v", errPublish)
-		return
+		return false
 	}
 	notifyModelRefresh(changed)
+	return true
 }
 
 func readCatalogSource(ctx context.Context, source string) ([]byte, error) {
